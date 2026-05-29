@@ -1,0 +1,1126 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>牛顿插值法 · 交互式教程</title>
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, 'Noto Sans SC', sans-serif;
+    background: #f0f2f5; color: #1f2937; min-height: 100vh;
+}
+.app-header {
+    background: linear-gradient(135deg, #1e3a5f, #2563eb);
+    color: #fff; padding: 20px 28px; text-align: center;
+    box-shadow: 0 2px 12px rgba(0,0,0,.15);
+}
+.app-header h1 { font-size: 26px; font-weight: 700; letter-spacing: 1px; }
+.app-header h1 span { color: #93c5fd; }
+.app-header p { font-size: 14px; opacity: .85; margin-top: 4px; }
+.main-container { max-width: 1400px; margin: 0 auto; padding: 20px; display: flex; gap: 20px; flex-wrap: wrap; }
+.card { background: #fff; border-radius: 12px; box-shadow: 0 1px 6px rgba(0,0,0,.08); padding: 20px; }
+.plot-section { flex: 1; min-width: 500px; }
+.control-section { width: 340px; flex-shrink: 0; display: flex; flex-direction: column; gap: 16px; }
+#plotSvg { width: 100%; height: 500px; display: block; border-radius: 8px; cursor: crosshair; user-select: none; background: #fafbfc; }
+#plotSvg .grid-line { stroke: #e5e7eb; stroke-width: .5; }
+#plotSvg .axis-line { stroke: #9ca3af; stroke-width: 1.2; }
+#plotSvg .axis-label { fill: #6b7280; font-size: 11px; font-family: inherit; }
+#plotSvg .interp-curve { fill: none; stroke: #2563eb; stroke-width: 2.5; stroke-linejoin: round; stroke-linecap: round; }
+#plotSvg .orig-curve { fill: none; stroke: #9ca3af; stroke-width: 1.8; stroke-dasharray: 6,4; }
+#plotSvg .data-point { fill: #ef4444; stroke: #fff; stroke-width: 2; cursor: grab; transition: r .1s; }
+#plotSvg .data-point:hover { r: 8; }
+#plotSvg .data-point.active { r: 8; stroke: #2563eb; stroke-width: 2.5; }
+#plotSvg .point-label { fill: #374151; font-size: 11px; font-weight: 600; font-family: inherit; }
+#plotSvg .legend-text { fill: #374151; font-size: 12px; font-family: inherit; }
+.control-group { margin-bottom: 4px; }
+.control-group label { display: block; font-size: 13px; font-weight: 600; color: #374151; margin-bottom: 6px; }
+select, button, .checkbox-group { width: 100%; }
+select {
+    padding: 8px 12px; border: 1px solid #d1d5db; border-radius: 8px; font-size: 13px;
+    background: #fff; cursor: pointer; outline: none; transition: border-color .2s;
+}
+select:focus { border-color: #2563eb; box-shadow: 0 0 0 3px rgba(37,99,235,.15); }
+.btn-row { display: flex; gap: 8px; flex-wrap: wrap; }
+.btn {
+    flex: 1; padding: 8px 12px; border: none; border-radius: 8px; font-size: 13px; font-weight: 600;
+    cursor: pointer; transition: all .2s; min-width: 60px; text-align: center;
+}
+.btn-primary { background: #2563eb; color: #fff; }
+.btn-primary:hover { background: #1d4ed8; }
+.btn-danger { background: #ef4444; color: #fff; }
+.btn-danger:hover { background: #dc2626; }
+.btn-outline { background: #fff; color: #374151; border: 1px solid #d1d5db; }
+.btn-outline:hover { background: #f3f4f6; }
+.checkbox-group { display: flex; gap: 16px; flex-wrap: wrap; padding: 4px 0; }
+.checkbox-group label { display: flex; align-items: center; gap: 6px; font-size: 13px; font-weight: 400; cursor: pointer; }
+.checkbox-group input[type="checkbox"] { width: 16px; height: 16px; accent-color: #2563eb; cursor: pointer; }
+.info-panel { font-size: 13px; line-height: 1.7; }
+.info-panel .stat { display: flex; justify-content: space-between; padding: 3px 0; border-bottom: 1px solid #f3f4f6; }
+.info-panel .stat:last-child { border-bottom: none; }
+.info-panel .stat-label { color: #6b7280; }
+.info-panel .stat-value { font-weight: 600; font-variant-numeric: tabular-nums; }
+.poly-box {
+    background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 12px; font-size: 13px;
+    font-family: 'Courier New', monospace; overflow-x: auto; white-space: nowrap; margin-top: 8px;
+    line-height: 1.6;
+}
+.poly-box .poly-label { font-size: 11px; color: #6b7280; font-family: inherit; white-space: nowrap; }
+.poly-box .poly-term { color: #1e40af; }
+.poly-box .poly-op { color: #374151; }
+.section-title {
+    font-size: 14px; font-weight: 700; color: #1f2937; margin-bottom: 10px; padding-bottom: 6px;
+    border-bottom: 2px solid #e5e7eb; display: flex; align-items: center; gap: 8px;
+}
+.tip-box {
+    background: #eff6ff; border-left: 3px solid #2563eb; border-radius: 6px;
+    padding: 10px 14px; font-size: 12px; line-height: 1.7; color: #1e40af;
+}
+.tip-box strong { color: #1e3a5f; }
+.dd-table-wrap { overflow-x: auto; max-height: 300px; overflow-y: auto; }
+.dd-table { width: 100%; border-collapse: collapse; font-size: 12px; font-variant-numeric: tabular-nums; }
+.dd-table th, .dd-table td { border: 1px solid #e5e7eb; padding: 6px 10px; text-align: center; white-space: nowrap; }
+.dd-table th { background: #f8fafc; font-weight: 600; color: #374151; position: sticky; top: 0; }
+.dd-table td { background: #fff; }
+.dd-table tr:hover td { background: #fafbfc; }
+.dd-table .highlight { background: #eff6ff !important; font-weight: 600; }
+.slider-group { display: flex; align-items: center; gap: 12px; }
+.slider-group input[type="range"] { flex: 1; accent-color: #2563eb; cursor: pointer; }
+.slider-group .slider-val { min-width: 28px; text-align: center; font-weight: 700; font-size: 14px; color: #2563eb; }
+.hint { font-size: 11px; color: #9ca3af; margin-top: 2px; }
+.collapse-toggle { cursor: pointer; user-select: none; }
+.collapse-toggle:hover { color: #2563eb; }
+.collapse-content { display: none; margin-top: 12px; }
+.collapse-content.open { display: block; }
+.error-curve { fill: none; stroke: #f59e0b; stroke-width: 1.5; stroke-dasharray: 3,3; opacity: .7; }
+@media (max-width: 900px) {
+    .plot-section, .control-section { min-width: 100%; }
+    .control-section { width: 100%; }
+    #plotSvg { height: 380px; }
+    .app-header h1 { font-size: 20px; }
+}
+</style>
+</head>
+<body>
+
+<div class="app-header">
+    <h1>🧮 牛顿<span>插值</span>法 · 交互式探索</h1>
+    <p>拖拽数据点 · 观察插值多项式变化 · 理解龙格现象与欠拟合</p>
+</div>
+
+<div class="main-container">
+
+<!-- ====== 绘图区 ====== -->
+<div class="card plot-section">
+    <svg id="plotSvg"></svg>
+</div>
+
+<!-- ====== 控制区 ====== -->
+<div class="control-section">
+
+    <!-- 预设函数 -->
+    <div class="card control-group">
+        <label for="presetSelect">📐 预设函数</label>
+        <select id="presetSelect">
+            <option value="runge">Runge 函数 1/(1+25x²)</option>
+            <option value="sine">正弦函数 sin(2x)</option>
+            <option value="cubic">三次函数 x³ − 2x</option>
+            <option value="exp">指数函数 2ˣ</option>
+            <option value="abs">绝对值函数 |x|</option>
+            <option value="custom">自定义 (自由添加)</option>
+        </select>
+        <div class="hint">选择预设后自动生成等距节点，可继续拖拽调整</div>
+    </div>
+
+    <!-- 节点数控制 -->
+    <div class="card control-group" id="npointsGroup">
+        <label for="npointsSlider">🔢 节点数量 <span id="npointsVal" class="slider-val">7</span></label>
+        <div class="slider-group">
+            <span style="font-size:12px;color:#9ca3af;">少</span>
+            <input type="range" id="npointsSlider" min="2" max="15" value="7" step="1">
+            <span style="font-size:12px;color:#9ca3af;">多</span>
+        </div>
+        <div class="hint">节点少 → 欠拟合 &nbsp;|&nbsp; 等距节点多 → 龙格现象</div>
+    </div>
+
+    <!-- 操作按钮 -->
+    <div class="card">
+        <div class="btn-row">
+            <button class="btn btn-primary" id="resetBtn">🔄 重置</button>
+            <button class="btn btn-danger" id="clearBtn">🗑 清空</button>
+            <button class="btn btn-outline" id="exportBtn">📋 导出数据</button>
+        </div>
+    </div>
+
+    <!-- 显示选项 -->
+    <div class="card">
+        <div class="checkbox-group">
+            <label><input type="checkbox" id="showOriginal" checked> 显示原函数</label>
+            <label><input type="checkbox" id="showError" checked> 显示误差</label>
+            <label><input type="checkbox" id="showLabels" checked> 显示坐标</label>
+        </div>
+    </div>
+
+    <!-- 统计信息 -->
+    <div class="card info-panel" id="infoPanel">
+        <div class="section-title">📊 统计</div>
+        <div class="stat"><span class="stat-label">节点数</span><span class="stat-value" id="statN">0</span></div>
+        <div class="stat"><span class="stat-label">多项式次数</span><span class="stat-value" id="statDegree">0</span></div>
+        <div class="stat"><span class="stat-label">均方误差 (MSE)</span><span class="stat-value" id="statMSE">—</span></div>
+        <div class="stat"><span class="stat-label">最大误差</span><span class="stat-value" id="statMaxErr">—</span></div>
+    </div>
+
+    <!-- 多项式表达式 -->
+    <div class="card">
+        <div class="section-title">📝 插值多项式</div>
+        <div class="poly-box" id="polyNewton">P(x) = <span style="color:#9ca3af;">暂无数据</span></div>
+        <div style="margin-top:6px;">
+            <span class="collapse-toggle" id="polyExpandToggle" style="font-size:12px;color:#2563eb;cursor:pointer;">▶ 展开为幂形式</span>
+        </div>
+        <div class="collapse-content" id="polyStandard">
+            <div class="poly-box" id="polyStandardContent" style="margin-top:6px;">P(x) = <span style="color:#9ca3af;">暂无数据</span></div>
+        </div>
+    </div>
+
+    <!-- 操作提示 -->
+    <div class="card tip-box">
+        <strong>💡 操作提示</strong><br>
+        • <strong>点击</strong>空白区域添加节点<br>
+        • <strong>拖拽</strong>节点改变位置<br>
+        • <strong>双击</strong>节点删除<br>
+        • 选择预设函数观察不同现象
+    </div>
+</div>
+
+</div>
+
+<!-- ====== 均差表 ====== -->
+<div class="card" style="max-width:1400px;margin:0 auto 20px;width:calc(100% - 40px);">
+    <div class="section-title">
+        <span class="collapse-toggle" id="ddTableToggle">📉 差商表 (点击展开)</span>
+    </div>
+    <div class="collapse-content" id="ddTableContent">
+        <div class="dd-table-wrap" id="ddTableWrap">
+            <table class="dd-table">
+                <thead><tr id="ddTableHead"><th>xᵢ</th><th>f[xᵢ]</th></tr></thead>
+                <tbody id="ddTableBody"></tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<script>
+// ============================================================
+//  预设函数
+// ============================================================
+const PRESETS = {
+    runge: {
+        name: 'Runge',
+        f: x => 1 / (1 + 25 * x * x),
+        domain: [-1, 1],
+        defaultN: 9
+    },
+    sine: {
+        name: 'sin(2x)',
+        f: x => Math.sin(2 * x),
+        domain: [-Math.PI, Math.PI],
+        defaultN: 8
+    },
+    cubic: {
+        name: 'x³−2x',
+        f: x => x * x * x - 2 * x,
+        domain: [-2, 2],
+        defaultN: 5
+    },
+    exp: {
+        name: '2ˣ',
+        f: x => Math.pow(2, x),
+        domain: [-2, 3],
+        defaultN: 6
+    },
+    abs: {
+        name: '|x|',
+        f: x => Math.abs(x),
+        domain: [-2, 2],
+        defaultN: 6
+    },
+    custom: {
+        name: '自定义',
+        f: null,
+        domain: [-5, 5],
+        defaultN: 0
+    }
+};
+
+// ============================================================
+//  状态
+// ============================================================
+let points = [];
+let currentPreset = 'runge';
+let hasOriginalFn = true;
+let dragIdx = -1;
+let dragId = -1;
+let dragOffsetX = 0;
+let dragOffsetY = 0;
+let pointIdCounter = 0;
+
+// ============================================================
+//  SVG 引用与尺寸
+// ============================================================
+const svg = document.getElementById('plotSvg');
+const NS = 'http://www.w3.org/2000/svg';
+
+function getSVGSize() {
+    const rect = svg.getBoundingClientRect();
+    return { w: rect.width, h: rect.height };
+}
+
+function getSVGCoord(clientX, clientY) {
+    const rect = svg.getBoundingClientRect();
+    return {
+        x: clientX - rect.left,
+        y: clientY - rect.top
+    };
+}
+
+// ============================================================
+//  坐标变换
+// ============================================================
+const MARGIN = { top: 20, right: 30, bottom: 42, left: 55 };
+
+function dataToScreen(x, y, w, h, xMin, xMax, yMin, yMax) {
+    const pw = w - MARGIN.left - MARGIN.right;
+    const ph = h - MARGIN.top - MARGIN.bottom;
+    return {
+        sx: MARGIN.left + ((x - xMin) / (xMax - xMin)) * pw,
+        sy: MARGIN.top + ph - ((y - yMin) / (yMax - yMin)) * ph
+    };
+}
+
+function screenToData(sx, sy, w, h, xMin, xMax, yMin, yMax) {
+    const pw = w - MARGIN.left - MARGIN.right;
+    const ph = h - MARGIN.top - MARGIN.bottom;
+    return {
+        dx: xMin + ((sx - MARGIN.left) / pw) * (xMax - xMin),
+        dy: yMax - ((sy - MARGIN.top) / ph) * (yMax - yMin) // y axis is flipped in SVG
+    };
+}
+
+// ============================================================
+//  牛顿插值
+// ============================================================
+function dividedDifferences(pts) {
+    const n = pts.length;
+    if (n === 0) return [];
+    const F = Array.from({ length: n }, () => Array(n).fill(0));
+    for (let i = 0; i < n; i++) F[i][0] = pts[i].y;
+    for (let j = 1; j < n; j++) {
+        for (let i = 0; i < n - j; i++) {
+            F[i][j] = (F[i + 1][j - 1] - F[i][j - 1]) / (pts[i + j].x - pts[i].x);
+        }
+    }
+    return F; // full table
+}
+
+function evalNewton(pts, coeffs, x) {
+    const n = coeffs.length;
+    if (n === 0) return 0;
+    let r = coeffs[n - 1];
+    for (let i = n - 2; i >= 0; i--) {
+        r = r * (x - pts[i].x) + coeffs[i];
+    }
+    return r;
+}
+
+function newtonToPower(coeffs, pts) {
+    if (coeffs.length === 0) return [];
+    let poly = [coeffs[coeffs.length - 1]];
+    for (let i = coeffs.length - 2; i >= 0; i--) {
+        const newPoly = new Array(poly.length + 1).fill(0);
+        for (let j = 0; j < poly.length; j++) {
+            newPoly[j + 1] += poly[j];
+            newPoly[j] -= pts[i].x * poly[j];
+        }
+        newPoly[0] += coeffs[i];
+        poly = newPoly;
+    }
+    return poly;
+}
+
+function formatPoly(coeffs) {
+    const superscript = ['⁰','¹','²','³','⁴','⁵','⁶','⁷','⁸','⁹'];
+    function toSup(n) {
+        if (n <= 9) return superscript[n];
+        return String(n).split('').map(d => superscript[+d]).join('');
+    }
+    const terms = [];
+    const n = coeffs.length;
+    for (let i = n - 1; i >= 0; i--) {
+        const c = coeffs[i];
+        if (Math.abs(c) < 1e-10) continue;
+        let term = '';
+        if (i === 0) {
+            term = c.toFixed(4);
+        } else {
+            if (Math.abs(c - 1) < 1e-10) term = '';
+            else if (Math.abs(c + 1) < 1e-10) term = '-';
+            else term = c.toFixed(4);
+            term += 'x';
+            if (i > 1) term += toSup(i);
+        }
+        terms.push(term);
+    }
+    if (terms.length === 0) return '0';
+    return terms.join(' + ').replace(/\+ -/g, '- ').replace(/\+ -/g, '- ');
+}
+
+function formatNewtonPoly(coeffs, pts) {
+    const superscript = ['⁰','¹','²','³','⁴','⁵','⁶','⁷','⁸','⁹'];
+    const n = coeffs.length;
+    if (n === 0) return '0';
+    const terms = [];
+    for (let i = 0; i < n; i++) {
+        const c = coeffs[i];
+        if (Math.abs(c) < 1e-10) continue;
+        let term = '';
+        if (i === 0) {
+            term = c.toFixed(4);
+        } else {
+            if (Math.abs(c - 1) < 1e-10) term = '';
+            else if (Math.abs(c + 1) < 1e-10) term = '-';
+            else term = c.toFixed(4);
+            for (let j = 0; j < i; j++) {
+                const xj = pts[j].x;
+                term += '(x';
+                if (xj >= 0) term += ' − ' + xj.toFixed(2);
+                else term += ' + ' + Math.abs(xj).toFixed(2);
+                term += ')';
+            }
+        }
+        terms.push(term);
+    }
+    if (terms.length === 0) return '0';
+    return terms.join(' + ').replace(/\+ -/g, '- ');
+}
+
+// ============================================================
+//  生成预设点
+// ============================================================
+function generatePresetPoints(name, n) {
+    const preset = PRESETS[name];
+    if (!preset || !preset.f) return [];
+    const [a, b] = preset.domain;
+    const pts = [];
+    for (let i = 0; i < n; i++) {
+        const x = a + (b - a) * i / (n - 1);
+        pts.push({ x, y: preset.f(x), id: pointIdCounter++ });
+    }
+    return pts;
+}
+
+// ============================================================
+//  渲染
+// ============================================================
+function render() {
+    const { w, h } = getSVGSize();
+    svg.setAttribute('viewBox', `0 0 ${w} ${h}`);
+
+    // 确定数据范围
+    const preset = PRESETS[currentPreset] || PRESETS.custom;
+    let xMin, xMax, yMin, yMax;
+    if (points.length > 0) {
+        const xs = points.map(p => p.x);
+        const ys = points.map(p => p.y);
+        xMin = Math.min(...xs);
+        xMax = Math.max(...xs);
+        yMin = Math.min(...ys);
+        yMax = Math.max(...ys);
+
+        // 如果是预设函数，扩展范围显示完整曲线
+        if (hasOriginalFn && preset.f) {
+            const [a, b] = preset.domain;
+            xMin = Math.min(xMin, a);
+            xMax = Math.max(xMax, b);
+            // 采样原函数确定 y 范围
+            for (let i = 0; i <= 100; i++) {
+                const t = a + (b - a) * i / 100;
+                const v = preset.f(t);
+                if (isFinite(v)) {
+                    yMin = Math.min(yMin, v);
+                    yMax = Math.max(yMax, v);
+                }
+            }
+        }
+    } else if (preset.f) {
+        const [a, b] = preset.domain;
+        xMin = a; xMax = b;
+        yMin = Infinity; yMax = -Infinity;
+        for (let i = 0; i <= 100; i++) {
+            const t = a + (b - a) * i / 100;
+            const v = preset.f(t);
+            if (isFinite(v)) {
+                yMin = Math.min(yMin, v);
+                yMax = Math.max(yMax, v);
+            }
+        }
+    } else {
+        xMin = -5; xMax = 5; yMin = -5; yMax = 5;
+    }
+
+    const pad = Math.max((yMax - yMin) * 0.15, 0.5);
+    yMin -= pad;
+    yMax += pad;
+    const xPad = Math.max((xMax - xMin) * 0.08, 0.3);
+    xMin -= xPad;
+    xMax += xPad;
+
+    // 清空 SVG
+    while (svg.firstChild) svg.removeChild(svg.firstChild);
+
+    const pw = w - MARGIN.left - MARGIN.right;
+    const ph = h - MARGIN.top - MARGIN.bottom;
+
+    // ---- 裁剪区域 ----
+    const clip = document.createElementNS(NS, 'clipPath');
+    clip.setAttribute('id', 'plotClip');
+    const clipRect = document.createElementNS(NS, 'rect');
+    clipRect.setAttribute('x', MARGIN.left);
+    clipRect.setAttribute('y', MARGIN.top);
+    clipRect.setAttribute('width', pw);
+    clipRect.setAttribute('height', ph);
+    clip.appendChild(clipRect);
+    svg.appendChild(clip);
+
+    const plotGroup = document.createElementNS(NS, 'g');
+    plotGroup.setAttribute('clip-path', 'url(#plotClip)');
+    svg.appendChild(plotGroup);
+
+    // ---- 网格 ----
+    function drawGrid() {
+        const g = document.createElementNS(NS, 'g');
+        // 垂直网格 (10 条)
+        for (let i = 0; i <= 10; i++) {
+            const x = MARGIN.left + (i / 10) * pw;
+            const line = document.createElementNS(NS, 'line');
+            line.setAttribute('x1', x); line.setAttribute('y1', MARGIN.top);
+            line.setAttribute('x2', x); line.setAttribute('y2', MARGIN.top + ph);
+            line.classList.add('grid-line');
+            g.appendChild(line);
+        }
+        // 水平网格 (8 条)
+        for (let i = 0; i <= 8; i++) {
+            const y = MARGIN.top + (i / 8) * ph;
+            const line = document.createElementNS(NS, 'line');
+            line.setAttribute('x1', MARGIN.left); line.setAttribute('y1', y);
+            line.setAttribute('x2', MARGIN.left + pw); line.setAttribute('y2', y);
+            line.classList.add('grid-line');
+            g.appendChild(line);
+        }
+        svg.appendChild(g);
+    }
+    drawGrid();
+
+    // ---- 坐标轴 ----
+    function drawAxes() {
+        const g = document.createElementNS(NS, 'g');
+        const origin = dataToScreen(0, 0, w, h, xMin, xMax, yMin, yMax);
+        // x-axis
+        if (origin.sy >= MARGIN.top && origin.sy <= MARGIN.top + ph) {
+            const line = document.createElementNS(NS, 'line');
+            line.setAttribute('x1', MARGIN.left); line.setAttribute('y1', origin.sy);
+            line.setAttribute('x2', MARGIN.left + pw); line.setAttribute('y2', origin.sy);
+            line.classList.add('axis-line');
+            g.appendChild(line);
+        }
+        // y-axis
+        if (origin.sx >= MARGIN.left && origin.sx <= MARGIN.left + pw) {
+            const line = document.createElementNS(NS, 'line');
+            line.setAttribute('x1', origin.sx); line.setAttribute('y1', MARGIN.top);
+            line.setAttribute('x2', origin.sx); line.setAttribute('y2', MARGIN.top + ph);
+            line.classList.add('axis-line');
+            g.appendChild(line);
+        }
+        // 轴刻度标签
+        const xTickStep = niceStep((xMax - xMin) / 6);
+        const yTickStep = niceStep((yMax - yMin) / 5);
+        // X 轴标签
+        for (let v = Math.ceil(xMin / xTickStep) * xTickStep; v <= xMax; v += xTickStep) {
+            const s = dataToScreen(v, 0, w, h, xMin, xMax, yMin, yMax);
+            if (s.sx < MARGIN.left || s.sx > MARGIN.left + pw) continue;
+            const text = document.createElementNS(NS, 'text');
+            text.setAttribute('x', s.sx); text.setAttribute('y', MARGIN.top + ph + 16);
+            text.setAttribute('text-anchor', 'middle');
+            text.classList.add('axis-label');
+            text.textContent = formatNum(v);
+            g.appendChild(text);
+        }
+        // Y 轴标签
+        for (let v = Math.ceil(yMin / yTickStep) * yTickStep; v <= yMax; v += yTickStep) {
+            const s = dataToScreen(0, v, w, h, xMin, xMax, yMin, yMax);
+            if (s.sy < MARGIN.top || s.sy > MARGIN.top + ph) continue;
+            const text = document.createElementNS(NS, 'text');
+            text.setAttribute('x', MARGIN.left - 10); text.setAttribute('y', s.sy + 4);
+            text.setAttribute('text-anchor', 'end');
+            text.classList.add('axis-label');
+            text.textContent = formatNum(v);
+            g.appendChild(text);
+        }
+        svg.appendChild(g);
+    }
+    drawAxes();
+
+    // ---- 原函数曲线 ----
+    const showOrig = document.getElementById('showOriginal').checked;
+    if (showOrig && hasOriginalFn && preset.f && points.length > 0) {
+        const curve = document.createElementNS(NS, 'path');
+        const pathData = [];
+        const nSamples = 300;
+        for (let i = 0; i <= nSamples; i++) {
+            const t = xMin + (xMax - xMin) * i / nSamples;
+            const v = preset.f(t);
+            if (!isFinite(v)) continue;
+            const s = dataToScreen(t, v, w, h, xMin, xMax, yMin, yMax);
+            if (i === 0 || !isFinite(v)) pathData.push(`M${s.sx},${s.sy}`);
+            else pathData.push(`L${s.sx},${s.sy}`);
+        }
+        curve.setAttribute('d', pathData.join(' '));
+        curve.classList.add('orig-curve');
+        plotGroup.appendChild(curve);
+
+        // 图例
+        const leg = document.createElementNS(NS, 'g');
+        const lx = MARGIN.left + 10, ly = MARGIN.top + 16;
+        const lline = document.createElementNS(NS, 'line');
+        lline.setAttribute('x1', lx); lline.setAttribute('y1', ly);
+        lline.setAttribute('x2', lx + 24); lline.setAttribute('y2', ly);
+        lline.classList.add('orig-curve');
+        leg.appendChild(lline);
+        const ltext = document.createElementNS(NS, 'text');
+        ltext.setAttribute('x', lx + 30); ltext.setAttribute('y', ly + 4);
+        ltext.classList.add('legend-text');
+        ltext.textContent = '原函数 ' + preset.name;
+        leg.appendChild(ltext);
+        plotGroup.appendChild(leg);
+    }
+
+    // ---- 插值曲线 ----
+    const showErr = document.getElementById('showError').checked;
+    if (points.length >= 2) {
+        const table = dividedDifferences(points);
+        const coeffs = table[0]; // first row
+        const nSamples = 300;
+        // 插值曲线
+        const interpPath = document.createElementNS(NS, 'path');
+        const pathData = [];
+        let first = true;
+        for (let i = 0; i <= nSamples; i++) {
+            const t = xMin + (xMax - xMin) * i / nSamples;
+            const v = evalNewton(points, coeffs, t);
+            if (!isFinite(v)) continue;
+            const s = dataToScreen(t, v, w, h, xMin, xMax, yMin, yMax);
+            if (first) { pathData.push(`M${s.sx},${s.sy}`); first = false; }
+            else pathData.push(`L${s.sx},${s.sy}`);
+        }
+        interpPath.setAttribute('d', pathData.join(' '));
+        interpPath.classList.add('interp-curve');
+        plotGroup.appendChild(interpPath);
+
+        // 误差曲线
+        if (showErr && showOrig && hasOriginalFn && preset.f) {
+            const errPath = document.createElementNS(NS, 'path');
+            const errData = [];
+            let eFirst = true;
+            for (let i = 0; i <= nSamples; i++) {
+                const t = xMin + (xMax - xMin) * i / nSamples;
+                const interp = evalNewton(points, coeffs, t);
+                const orig = preset.f(t);
+                if (!isFinite(interp) || !isFinite(orig)) continue;
+                const err = interp - orig;
+                const s = dataToScreen(t, err, w, h, xMin, xMax, yMin, yMax);
+                if (eFirst) { errData.push(`M${s.sx},${s.sy}`); eFirst = false; }
+                else errData.push(`L${s.sx},${s.sy}`);
+            }
+            errPath.setAttribute('d', errData.join(' '));
+            errPath.classList.add('error-curve');
+            plotGroup.appendChild(errPath);
+
+            // 误差图例
+            const eleg = document.createElementNS(NS, 'g');
+            const elx = MARGIN.left + 10, ely = MARGIN.top + 34;
+            const eline = document.createElementNS(NS, 'line');
+            eline.setAttribute('x1', elx); eline.setAttribute('y1', ely);
+            eline.setAttribute('x2', elx + 24); eline.setAttribute('y2', ely);
+            eline.classList.add('error-curve');
+            eleg.appendChild(eline);
+            const etext = document.createElementNS(NS, 'text');
+            etext.setAttribute('x', elx + 30); etext.setAttribute('y', ely + 4);
+            etext.classList.add('legend-text');
+            etext.textContent = '误差 (P(x) − f(x))';
+            eleg.appendChild(etext);
+            plotGroup.appendChild(eleg);
+        }
+
+        // 插值图例
+        const leg = document.createElementNS(NS, 'g');
+        const lx = MARGIN.left + 10, ly = showOrig && preset.f ? (MARGIN.top + 52) : (MARGIN.top + 16);
+        const lline = document.createElementNS(NS, 'line');
+        lline.setAttribute('x1', lx); lline.setAttribute('y1', ly);
+        lline.setAttribute('x2', lx + 24); lline.setAttribute('y2', ly);
+        lline.classList.add('interp-curve');
+        leg.appendChild(lline);
+        const ltext = document.createElementNS(NS, 'text');
+        ltext.setAttribute('x', lx + 30); ltext.setAttribute('y', ly + 4);
+        ltext.classList.add('legend-text');
+        ltext.textContent = `插值多项式 (${points.length} 个节点)`;
+        leg.appendChild(ltext);
+        plotGroup.appendChild(leg);
+    }
+
+    // ---- 数据点 ----
+    const showLabels = document.getElementById('showLabels').checked;
+    for (let i = 0; i < points.length; i++) {
+        const p = points[i];
+        const s = dataToScreen(p.x, p.y, w, h, xMin, xMax, yMin, yMax);
+        const circle = document.createElementNS(NS, 'circle');
+        circle.setAttribute('cx', s.sx); circle.setAttribute('cy', s.sy);
+        circle.setAttribute('r', 6);
+        circle.classList.add('data-point');
+        circle.dataset.idx = i;
+        plotGroup.appendChild(circle);
+
+        if (showLabels) {
+            const text = document.createElementNS(NS, 'text');
+            text.setAttribute('x', s.sx + 10); text.setAttribute('y', s.sy - 6);
+            text.classList.add('point-label');
+            text.textContent = `${formatNum(p.x)}, ${formatNum(p.y)}`;
+            text.dataset.idx = i;
+            plotGroup.appendChild(text);
+        }
+    }
+
+    // ---- 更新信息面板 ----
+    updateInfo(preset);
+}
+
+// ============================================================
+//  信息更新
+// ============================================================
+function updateInfo(preset) {
+    const n = points.length;
+    document.getElementById('statN').textContent = n;
+    document.getElementById('statDegree').textContent = n >= 2 ? (n - 1) : 0;
+
+    if (n >= 2) {
+        const table = dividedDifferences(points);
+        const coeffs = table[0];
+        // 计算误差
+        if (hasOriginalFn && preset.f) {
+            let mse = 0, maxErr = 0, count = 0;
+            for (let i = 0; i <= 200; i++) {
+                const t = (preset.domain[0] + (preset.domain[1] - preset.domain[0]) * i / 200);
+                const interp = evalNewton(points, coeffs, t);
+                const orig = preset.f(t);
+                if (!isFinite(interp) || !isFinite(orig)) continue;
+                const err = interp - orig;
+                mse += err * err;
+                maxErr = Math.max(maxErr, Math.abs(err));
+                count++;
+            }
+            if (count > 0) {
+                mse /= count;
+                document.getElementById('statMSE').textContent = mse.toExponential(3);
+                document.getElementById('statMaxErr').textContent = maxErr.toExponential(3);
+            }
+        } else {
+            // 对自定义点，计算插值在数据点处的误差（应该接近0）
+            let mse = 0;
+            for (const p of points) {
+                const v = evalNewton(points, coeffs, p.x);
+                mse += (v - p.y) ** 2;
+            }
+            mse /= points.length;
+            document.getElementById('statMSE').textContent = mse.toExponential(3);
+            document.getElementById('statMaxErr').textContent = '—';
+        }
+
+        // 多项式表达式
+        const ntStr = formatNewtonPoly(coeffs, points);
+        document.getElementById('polyNewton').innerHTML = 'P(x) = <span class="poly-term">' + ntStr + '</span>';
+
+        const powerCoeffs = newtonToPower(coeffs, points);
+        const pwStr = formatPoly(powerCoeffs);
+        document.getElementById('polyStandardContent').innerHTML = 'P(x) = <span class="poly-term">' + pwStr + '</span>';
+
+        // 均差表
+        updateDDTable(table, points);
+    } else {
+        document.getElementById('statMSE').textContent = '—';
+        document.getElementById('statMaxErr').textContent = '—';
+        document.getElementById('polyNewton').innerHTML = 'P(x) = <span style="color:#9ca3af;">至少需要 2 个节点</span>';
+        document.getElementById('polyStandardContent').innerHTML = 'P(x) = <span style="color:#9ca3af;">至少需要 2 个节点</span>';
+        updateDDTable(null, []);
+    }
+}
+
+// ============================================================
+//  均差表
+// ============================================================
+function updateDDTable(table, pts) {
+    const head = document.getElementById('ddTableHead');
+    const body = document.getElementById('ddTableBody');
+    head.innerHTML = '';
+    body.innerHTML = '';
+    if (!table || pts.length === 0) {
+        head.innerHTML = '<th>xᵢ</th><th>f[xᵢ]</th>';
+        body.innerHTML = '<tr><td colspan="2" style="color:#9ca3af;text-align:center;padding:20px;">暂无数据</td></tr>';
+        return;
+    }
+    const n = pts.length;
+    let hRow = '<th>xᵢ</th><th>f[xᵢ]</th>';
+    for (let j = 1; j < n; j++) {
+        const label = j === 1 ? '一阶' : j === 2 ? '二阶' : j === 3 ? '三阶' : j + '阶';
+        hRow += `<th>${label}</th>`;
+    }
+    head.innerHTML = hRow;
+
+    let rows = '';
+    for (let i = 0; i < n; i++) {
+        rows += '<tr>';
+        rows += `<td>${formatNum(pts[i].x)}</td>`;
+        for (let j = 0; j < n - i; j++) {
+            const val = table[i][j];
+            const cls = j === 0 ? 'highlight' : '';
+            if (j === 0) {
+                rows += `<td class="${cls}">${formatNum(val)}</td>`;
+            } else {
+                rows += `<td>${formatNum(val)}</td>`;
+            }
+        }
+        rows += '</tr>';
+    }
+    body.innerHTML = rows;
+}
+
+// ============================================================
+//  工具函数
+// ============================================================
+function formatNum(v) {
+    if (!isFinite(v)) return '∞';
+    const a = Math.abs(v);
+    if (a === 0) return '0';
+    if (a >= 1000 || a < 0.001) return v.toExponential(3);
+    if (a < 1) return v.toFixed(4);
+    if (a < 10) return v.toFixed(3);
+    if (a < 100) return v.toFixed(2);
+    return v.toFixed(1);
+}
+
+function niceStep(raw) {
+    const exp = Math.floor(Math.log10(raw));
+    const frac = raw / Math.pow(10, exp);
+    let nice;
+    if (frac <= 1.5) nice = 1;
+    else if (frac <= 3.5) nice = 2;
+    else if (frac <= 7.5) nice = 5;
+    else nice = 10;
+    return nice * Math.pow(10, exp);
+}
+
+// ============================================================
+//  事件处理
+// ============================================================
+function getPointAt(screenX, screenY, radius) {
+    radius = radius || 12;
+    for (let i = 0; i < points.length; i++) {
+        const { w, h } = getSVGSize();
+        const [a, b] = getBounds();
+        const s = dataToScreen(points[i].x, points[i].y, w, h, a.xMin, a.xMax, a.yMin, a.yMax);
+        const dx = screenX - s.sx, dy = screenY - s.sy;
+        if (dx * dx + dy * dy <= radius * radius) return i;
+    }
+    return -1;
+}
+
+function getBounds() {
+    const preset = PRESETS[currentPreset] || PRESETS.custom;
+    const pts = points;
+    let xMin, xMax, yMin, yMax;
+    if (pts.length > 0) {
+        const xs = pts.map(p => p.x);
+        const ys = pts.map(p => p.y);
+        xMin = Math.min(...xs);
+        xMax = Math.max(...xs);
+        yMin = Math.min(...ys);
+        yMax = Math.max(...ys);
+        if (hasOriginalFn && preset.f) {
+            const [a, b] = preset.domain;
+            xMin = Math.min(xMin, a);
+            xMax = Math.max(xMax, b);
+            for (let i = 0; i <= 100; i++) {
+                const t = a + (b - a) * i / 100;
+                const v = preset.f(t);
+                if (isFinite(v)) {
+                    yMin = Math.min(yMin, v);
+                    yMax = Math.max(yMax, v);
+                }
+            }
+        }
+    } else if (preset.f) {
+        const [a, b] = preset.domain;
+        xMin = a; xMax = b;
+        yMin = Infinity; yMax = -Infinity;
+        for (let i = 0; i <= 100; i++) {
+            const t = a + (b - a) * i / 100;
+            const v = preset.f(t);
+            if (isFinite(v)) {
+                yMin = Math.min(yMin, v);
+                yMax = Math.max(yMax, v);
+            }
+        }
+    } else {
+        xMin = -5; xMax = 5; yMin = -5; yMax = 5;
+    }
+    const pad = Math.max((yMax - yMin) * 0.15, 0.5);
+    yMin -= pad; yMax += pad;
+    const xPad = Math.max((xMax - xMin) * 0.08, 0.3);
+    xMin -= xPad; xMax += xPad;
+    return { xMin, xMax, yMin, yMax };
+}
+
+// ---- Mouse Events ----
+svg.addEventListener('mousedown', (e) => {
+    const { x: sx, y: sy } = getSVGCoord(e.clientX, e.clientY);
+    const idx = getPointAt(sx, sy);
+    const { w, h } = getSVGSize();
+    const bounds = getBounds();
+
+    if (idx >= 0) {
+        dragIdx = idx;
+        dragId = points[idx].id;
+        const s = dataToScreen(points[idx].x, points[idx].y, w, h, bounds.xMin, bounds.xMax, bounds.yMin, bounds.yMax);
+        dragOffsetX = sx - s.sx;
+        dragOffsetY = sy - s.sy;
+        // 高亮
+        const circles = svg.querySelectorAll('.data-point');
+        circles.forEach(c => c.classList.remove('active'));
+        if (circles[idx]) circles[idx].classList.add('active');
+        e.preventDefault();
+    } else {
+        // 添加点
+        const d = screenToData(sx, sy, w, h, bounds.xMin, bounds.xMax, bounds.yMin, bounds.yMax);
+        // 如果当前选中自定义预设或没有原函数，自由添加
+        // 否则，让 y 吸附到原函数
+        const preset = PRESETS[currentPreset];
+        let yVal = d.dy;
+        if (hasOriginalFn && preset && preset.f) {
+            yVal = preset.f(d.dx);
+        }
+        points.push({ x: d.dx, y: yVal, id: pointIdCounter++ });
+        // 按 x 排序
+        points.sort((a, b) => a.x - b.x);
+        render();
+        updatePresetUI();
+    }
+});
+
+svg.addEventListener('mousemove', (e) => {
+    if (dragIdx < 0) return;
+    const { x: sx, y: sy } = getSVGCoord(e.clientX, e.clientY);
+    const { w, h } = getSVGSize();
+    const bounds = getBounds();
+    const d = screenToData(sx - dragOffsetX, sy - dragOffsetY, w, h, bounds.xMin, bounds.xMax, bounds.yMin, bounds.yMax);
+
+    // 限制在合理范围内
+    d.dx = Math.max(bounds.xMin + 0.01, Math.min(bounds.xMax - 0.01, d.dx));
+    d.dy = Math.max(bounds.yMin + 0.01, Math.min(bounds.yMax - 0.01, d.dy));
+
+    const dragPoint = points.find(p => p.id === dragId);
+    if (dragPoint) { dragPoint.x = d.dx; dragPoint.y = d.dy; }
+    points.sort((a, b) => a.x - b.x);
+    // 更新 dragIdx 指向正确的点（排序后索引变了）
+    dragIdx = points.findIndex(p => p.id === dragId);
+    render();
+    updatePresetUI();
+});
+
+svg.addEventListener('mouseup', () => {
+    dragIdx = -1;
+    const circles = svg.querySelectorAll('.data-point');
+    circles.forEach(c => c.classList.remove('active'));
+});
+
+svg.addEventListener('mouseleave', () => {
+    if (dragIdx >= 0) {
+        dragIdx = -1;
+        const circles = svg.querySelectorAll('.data-point');
+        circles.forEach(c => c.classList.remove('active'));
+    }
+});
+
+// ---- Double-click to delete ----
+svg.addEventListener('dblclick', (e) => {
+    const { x: sx, y: sy } = getSVGCoord(e.clientX, e.clientY);
+    const idx = getPointAt(sx, sy);
+    if (idx >= 0) {
+        points.splice(idx, 1);
+        render();
+        updatePresetUI();
+    }
+});
+
+// ---- Touch events for mobile ----
+svg.addEventListener('touchstart', (e) => {
+    e.preventDefault();
+    const touch = e.touches[0];
+    const { x: sx, y: sy } = getSVGCoord(touch.clientX, touch.clientY);
+    const idx = getPointAt(sx, sy);
+    const { w, h } = getSVGSize();
+    const bounds = getBounds();
+
+    if (idx >= 0) {
+        dragIdx = idx;
+        dragId = points[idx].id;
+        const s = dataToScreen(points[idx].x, points[idx].y, w, h, bounds.xMin, bounds.xMax, bounds.yMin, bounds.yMax);
+        dragOffsetX = sx - s.sx;
+        dragOffsetY = sy - s.sy;
+    } else {
+        const d = screenToData(sx, sy, w, h, bounds.xMin, bounds.xMax, bounds.yMin, bounds.yMax);
+        const preset = PRESETS[currentPreset];
+        let yVal = d.dy;
+        if (hasOriginalFn && preset && preset.f) {
+            yVal = preset.f(d.dx);
+        }
+        points.push({ x: d.dx, y: yVal, id: pointIdCounter++ });
+        points.sort((a, b) => a.x - b.x);
+        render();
+        updatePresetUI();
+    }
+}, { passive: false });
+
+svg.addEventListener('touchmove', (e) => {
+    e.preventDefault();
+    if (dragIdx < 0) return;
+    const touch = e.touches[0];
+    const { x: sx, y: sy } = getSVGCoord(touch.clientX, touch.clientY);
+    const { w, h } = getSVGSize();
+    const bounds = getBounds();
+    const d = screenToData(sx - dragOffsetX, sy - dragOffsetY, w, h, bounds.xMin, bounds.xMax, bounds.yMin, bounds.yMax);
+    d.dx = Math.max(bounds.xMin + 0.01, Math.min(bounds.xMax - 0.01, d.dx));
+    d.dy = Math.max(bounds.yMin + 0.01, Math.min(bounds.yMax - 0.01, d.dy));
+    const dragPoint = points.find(p => p.id === dragId);
+    if (dragPoint) { dragPoint.x = d.dx; dragPoint.y = d.dy; }
+    points.sort((a, b) => a.x - b.x);
+    dragIdx = points.findIndex(p => p.id === dragId);
+    render();
+    updatePresetUI();
+}, { passive: false });
+
+svg.addEventListener('touchend', (e) => {
+    e.preventDefault();
+    dragIdx = -1;
+}, { passive: false });
+
+// ============================================================
+//  UI Controls
+// ============================================================
+function updatePresetUI() {
+    const select = document.getElementById('presetSelect');
+    // 如果当前预设是 custom，保持
+    if (currentPreset === 'custom') return;
+    // 检查是否仍然是预设函数采样点
+    // ... 不改变选择
+}
+
+// ---- Preset ----
+document.getElementById('presetSelect').addEventListener('change', (e) => {
+    currentPreset = e.target.value;
+    hasOriginalFn = currentPreset !== 'custom';
+    loadPreset();
+});
+
+function loadPreset() {
+    const preset = PRESETS[currentPreset];
+    const n = parseInt(document.getElementById('npointsSlider').value);
+    if (preset && preset.f) {
+        points = generatePresetPoints(currentPreset, n);
+        hasOriginalFn = true;
+    } else {
+        points = [];
+        hasOriginalFn = false;
+    }
+    render();
+}
+
+// ---- N slider ----
+document.getElementById('npointsSlider').addEventListener('input', (e) => {
+    const val = e.target.value;
+    document.getElementById('npointsVal').textContent = val;
+    if (currentPreset !== 'custom') {
+        loadPreset();
+    }
+});
+
+// ---- Reset ----
+document.getElementById('resetBtn').addEventListener('click', () => {
+    document.getElementById('presetSelect').value = currentPreset;
+    loadPreset();
+});
+
+// ---- Clear ----
+document.getElementById('clearBtn').addEventListener('click', () => {
+    points = [];
+    hasOriginalFn = currentPreset !== 'custom';
+    render();
+});
+
+// ---- Export ----
+document.getElementById('exportBtn').addEventListener('click', () => {
+    if (points.length === 0) return;
+    let csv = 'x,y\n';
+    for (const p of points) {
+        csv += `${p.x},${p.y}\n`;
+    }
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = 'newton_interpolation_data.csv';
+    a.click();
+    URL.revokeObjectURL(url);
+});
+
+// ---- Checkboxes ----
+document.getElementById('showOriginal').addEventListener('change', render);
+document.getElementById('showError').addEventListener('change', render);
+document.getElementById('showLabels').addEventListener('change', render);
+
+// ---- Collapse ----
+document.getElementById('polyExpandToggle').addEventListener('click', (e) => {
+    const content = document.getElementById('polyStandard');
+    content.classList.toggle('open');
+    e.target.textContent = content.classList.contains('open') ? '▼ 收起' : '▶ 展开为幂形式';
+});
+
+document.getElementById('ddTableToggle').addEventListener('click', (e) => {
+    const content = document.getElementById('ddTableContent');
+    content.classList.toggle('open');
+    e.target.textContent = content.classList.contains('open') ? '📉 差商表 (点击收起)' : '📉 差商表 (点击展开)';
+});
+
+// ============================================================
+//  Window Resize
+// ============================================================
+let resizeTimer;
+window.addEventListener('resize', () => {
+    clearTimeout(resizeTimer);
+    resizeTimer = setTimeout(render, 100);
+});
+
+// ============================================================
+//  Init
+// ============================================================
+loadPreset();
+
+</script>
+
+</body>
+</html>
